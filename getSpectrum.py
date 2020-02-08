@@ -239,12 +239,9 @@ def getNextMiniSect(ind, params, f):
     
 
 def main(filename):
-    #filename = sys.argv[1]
-    
     f = open(filename,'rb')
     params = getParams(f)
     
-
     name00 = b'\x52\x00\x6f\x00\x6f\x00\x74\x00\x20\x00\x45\x00\x6e\x00\x74\x00\x72\x00\x79\x00\x00\x00'.decode('utf-8')
 
     name01 = b'\x43\x00\x6f\x00\x6e\x00\x74\x00\x65\x00\x6e\x00\x74\x00\x73\x00\x00\x00'.decode('utf-8')
@@ -282,17 +279,14 @@ def main(filename):
         
         for child in traverseDirSibs(getDirLRC(dataDir, params, f)[2], params, f):
             childName = getDirName(child, params, f)
-            #print(childName)
             if childName == nameXData:
                 xdata = bytesToArr(getDirStream(child, params, f), 'd')
             if childName == nameYData:
                 ydata = bytesToArr(getDirStream(child, params, f), 'd')
 
-        #for i in range(0, len(xdata)):
         for i in range(0, len(xdata)):
             fout.write("{:f}, {:f}\n".format(xdata[i], ydata[i]))
 
-#main()
 
 def main2():
     f = open(sys.argv[1],'rb')
@@ -315,7 +309,6 @@ def dirPrint():
     print(name)
     print(getDirLRC(ind, params, f))
     
-#dirPrint()
 
 
 def printParams():
@@ -325,5 +318,3 @@ def printParams():
         print(fname, params)
         f.close()
 
-
-#printParams()
