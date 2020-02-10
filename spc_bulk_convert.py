@@ -22,7 +22,14 @@ if __name__ == '__main__':
     
     directory = arguments['<directory>']
     for spc_file in Path(directory).glob('**/*.spc'):
-    	f = str(spc_file)
-    	main(f)
-    	print(f, 'converted')
+        spc_file = str(spc_file)
+
+        with open(spc_file, 'rb') as f:
+            signature = f.read(4)
+
+        if signature == b'\xD0\xCF\x11\xE0':
+            main(spc_file)
+            print('converted ' + spc_file)
+        else:
+            print('Not OLE CF type file format, skipping: ' + spc_file)
 
