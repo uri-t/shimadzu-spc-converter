@@ -57,16 +57,19 @@ class SpcFile
     dir_offset = (sid+1)*2**header[:sector_size_exp]+offset
 
     dir = {}
+    unpacker = {1 => 'c', 2 => 's', 4 => 'l'}
     DIRECTORY_ENTRIES.keys.each do |k|
       entry_offset = DIRECTORY_ENTRIES[k][:offset]
       size  = DIRECTORY_ENTRIES[k][:size]
-      dir[k] = File.binread(@fname, size, dir_offset+entry_offset).unpack('s')[0]
+      unpack_str = unpacker[size] || 's'
+      dir[k] = File.binread(@fname, size, dir_offset+entry_offset).unpack(unpack_str)[0]
+      #dir[k] = File.binread(@fname, size, dir_offset+entry_offset)
     end
     dir[:name] = File.binread(@fname, dir[:name_size], dir_offset).unpack('a*')[0].split("").map {|x| x.ord}.select{|x| x>=32}.map{|x| x.chr}.join
     return dir
   end
 
-  # returns the SAT table as an array of sids in order
+  # returns the SAT stream as a list of SIDS
   def sat_sids
     sat_sids = []
     sat = header[:msat][0]
@@ -77,6 +80,8 @@ class SpcFile
 
     # doesn't take into account the possibility of multiple MSAT sectors
     # I think this should only occur for files bigger than ~8MB
+    # I think the way it works is that the sector specified in the
+    # header would contain a pointer (i.e. SID) to the next MSAT as the final value
     if header[:num_msat_sectors] > 0
       raise("whoa there big file")
     end
@@ -84,16 +89,22 @@ class SpcFile
     return sat_sids
   end
 
-  # returns list of sector ids in the order in which they appear in the normal stream
-  # reads from SAT table
-  def stream_list(start_id)
+  def ssat_table()
+    ssat_sectors = stream_list(header[:ssat_sid])
+  end
+
+  def ssat
     sids_raw = []
-    sat_sids.each do |s|
+    ssat_table.each do |s|
       size = 2**header[:sector_size_exp]
       offset = (s+1)*size
       sids_raw.concat(File.binread(@fname, size, offset).unpack('l*'))
-      
     end
+    sids_raw
+  end
+
+  def short_stream_list(start_id)
+    sids_raw = ssat
     stream = []
     sid = start_id
     while sid > 0
@@ -101,5 +112,84 @@ class SpcFile
       sid = sids_raw[sid]
     end
     return stream
+  end
+
+
+  def sat()
+    sids_raw = []
+    sat_sids.each do |s|
+      size = 2**header[:sector_size_exp]
+      offset = (s+1)*size
+      sids_raw.concat(File.binread(@fname, size, offset).unpack('l*'))
+    end
+    return sids_raw
+  end
+
+  
+  def all_streams
+    visited = []
+    sat.each do |sid|
+      if ! visited.include?(sid)
+        stream =  stream_list(sid)
+        visited.concat(stream)
+        if stream.size > 0
+          puts stream.to_s
+        end
+      end
+    end
+  end
+  
+    
+  # returns list of sector ids in the order in which they appear in the normal stream
+  # reads from SAT table
+  def stream_list(start_id)
+    sids_raw = sat
+    stream = []
+    sid = start_id
+    while sid > 0
+      stream << sid
+      sid = sids_raw[sid]
+    end
+    return stream
+  end
+
+  def get_stream_data(start_sid)
+    data = ""
+    sector_size = 2**header[:sector_size_exp]
+    
+    stream_list(start_sid).each do |sid|
+      offset = (sid+1)*sector_size
+      data += File.binread(@fname, sector_size, offset)
+    end
+    return data
+  end
+
+  def get_mini_stream_data()
+    data = ""
+
+    # sector id of the beginning of the minisector stream is stored in
+    # the root directory (sid entry)
+    start_sid = get_dir(0)[:sid]
+
+    return get_stream_data(start_sid)
+  end
+
+
+  def read_stream(ind, size)
+
+    if size <= header[:stream_size_cutoff]
+      full_stream = get_mini_stream_data.split("")
+      
+      short_sector_size = 2**header[:short_sector_size_exp]
+
+      out = []
+      short_stream_list(ind).each do |ssid|
+        out.concat(full_stream[short_sector_size*ssid, short_sector_size])
+      end
+      return out
+    else
+      full_stream = get_stream_data(ind)
+      return full_stream[0, size]
+    end
   end
 end
