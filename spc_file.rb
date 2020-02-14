@@ -71,22 +71,9 @@ class SpcFile
 
   # returns the SAT stream as a list of SIDS
   def sat_sids
-    sat_sids = []
-    sat = header[:msat][0]
-    while sat != -1
-      sat_sids << sat
-      sat =  header[:msat][sat]
-    end
+    sat_sids = header[:msat].select{|x| x > 0}
 
-    # doesn't take into account the possibility of multiple MSAT sectors
-    # I think this should only occur for files bigger than ~8MB
-    # I think the way it works is that the sector specified in the
-    # header would contain a pointer (i.e. SID) to the next MSAT as the final value
-    if header[:num_msat_sectors] > 0
-      raise("whoa there big file")
-    end
-    
-    return sat_sids
+    # TODO--add logic to handle when there are multiple MSAT sectors
   end
 
   def ssat_table()
@@ -190,6 +177,50 @@ class SpcFile
     else
       full_stream = get_stream_data(ind)
       return full_stream[0, size]
+    end
+  end
+
+  def dir_tree
+    root = get_dir(0)
+    add_children(root)
+    return root
+  end
+
+  def add_children(dir)
+    if dir[:child_id] > 0
+      child = get_dir(dir[:child_id])
+      dir[:children] = get_siblings(child)
+      dir[:children].each do |x|
+        add_children(x)
+      end
+    end
+  end
+
+  def get_siblings(dir)
+    sib_ids = [dir[:left_sib_id], dir[:right_sib_id]].select {|x| x > 0}
+
+    immediate_sibs = sib_ids.map{|x| get_dir(x)}
+
+    sibs = []
+    immediate_sibs.each do |sib|
+      sibs.concat(get_siblings(sib))
+    end
+
+    sibs.concat(immediate_sibs)
+  end
+
+  def print_tree
+    print_node(dir_tree, 0)
+  end
+  
+  def print_node(node, level)
+    if level > 1
+      return
+    end
+    puts "  "*level + node[:name]
+
+    (node[:children] || []).each do |c|
+      print_node(c, level+1)
     end
   end
 end
