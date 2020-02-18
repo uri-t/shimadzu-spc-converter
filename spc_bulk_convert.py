@@ -16,20 +16,24 @@ from docopt import docopt
 from pathlib import Path
 from getSpectrum import main
 
-
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='Naval Fate 2.0')
     
     directory = arguments['<directory>']
-    for spc_file in Path(directory).glob('**/*.spc'):
-        spc_file = str(spc_file)
+    # recursively iterate all items matching the glob pattern
+    for spc_file in Path(directory).rglob('*'):
+        # .suffix property refers to .ext extension
+        ext = spc_file.suffix
+        # use the .lower() method to get lowercase version of extension
+        if ext.lower() == ".spc":
+            spc_file = str(spc_file)
 
-        with open(spc_file, 'rb') as f:
-            signature = f.read(4)
+            with open(spc_file, 'rb') as f:
+                signature = f.read(4)
 
-        if signature == b'\xD0\xCF\x11\xE0':
-            main(spc_file)
-            print('converted ' + spc_file)
-        else:
-            print('Not OLE CF type file format, skipping: ' + spc_file)
+            if signature == b'\xD0\xCF\x11\xE0':
+                main(spc_file)
+                print('converted ' + spc_file)
+            else:
+                print('Not OLE CF type file format, skipping: ' + spc_file)
 
