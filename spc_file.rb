@@ -189,7 +189,7 @@ class SpcFile
   def add_children(dir)
     if dir[:child_id] > 0
       child = get_dir(dir[:child_id])
-      dir[:children] = get_siblings(child)
+      dir[:children] = [child].concat(get_siblings(child))
       dir[:children].each do |x|
         add_children(x)
       end
@@ -214,13 +214,71 @@ class SpcFile
   end
   
   def print_node(node, level)
-    if level > 1
-      return
-    end
-    puts "  "*level + node[:name]
+#    if level > 5
+#      return
+#    end
+    puts "  "*level + node[:name] + " #{node[:sid]}"
 
     (node[:children] || []).each do |c|
       print_node(c, level+1)
     end
   end
+
+  def all_nodes
+    root = dir_tree
+    todo = [root]
+    nodes = []
+    
+    while todo.size > 0
+      curr_node = todo.pop
+
+      #puts curr_node[:children].to_s
+      
+      todo.concat(curr_node[:children] || [])
+      curr_node[:children] = nil
+      nodes << curr_node
+    end
+    return nodes
+  end
+
+  def str_cmp(str1, str2)
+    if str1.size != str2.size
+      return str1.size > str2.size
+    end
+    return str1 > str2
+  end
+
+  # search for exact name match (more efficient)
+  def search_sibs_strict(node, name)
+    curr_node = node
+    while true
+      if curr_node[:name] == name        
+        break
+      end
+      
+      if curr_node[:left_sib_id] == -1 && curr_node[:right_sib_id] == -1
+        return nil
+        end
+
+      if str_cmp(name, curr_node[:name])
+        # name > curr
+        curr_node = get_dir(curr_node[:right_sib_id])
+      else
+        curr_node = get_dir(curr_node[:left_sib_id])
+      end
+    end
+    return curr_node
+  end
+
+  
+  def search_sibs(node, name)
+    if name.class == String
+      return [search_sibs_strict(node, name)]
+    elsif name.class == Regexp
+      return get_siblings(node).append(node).select {|x| x[:name].match?(name)}
+    else
+      raise 'invalid argument'
+    end
+  end
+  
 end
