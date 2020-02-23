@@ -1,17 +1,24 @@
 require_relative 'spc_file.rb'
 
-spc = SpcFile.new('spc_test_files/' + ARGV[0])
+spc = SpcFile.new(ARGV[0])
 
 puts "========================"
 puts ARGV[0]
 
+puts spc.header
+puts spc.sat_sids.to_s
 
-#puts spc.header
+#puts spc.get_dir(804)
+#spc.print_tree
+#nodes = spc.all_nodes
+#root_node = spc.get_dir(1)
 
-#puts spc.get_dir(0)
-#puts spc.get_dir(10)
 
-spc.print_tree
+#puts spc.search_sibs(root_node, "DataStorageHeaderInfo")
 
-#puts spc.stream_list(66)
-#puts spc.read_stream(66, 9608).unpack('d*').to_s
+puts spc.read_stream(10222, 400008).unpack('d*')
+
+#nodes.select{|x| x[:name] == "PageTexts0"}.each do |node|
+#  puts spc.read_stream(node[:sid], node[:size]).select{|x| x!= "\x00"}.join
+#end
+

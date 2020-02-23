@@ -73,7 +73,15 @@ class SpcFile
   def sat_sids
     sat_sids = header[:msat].select{|x| x > 0}
 
-    # TODO--add logic to handle when there are multiple MSAT sectors
+    size = 2**header[:sector_size_exp]
+    # handle when there are multiple MSAT sectors
+    curr_sid = header[:msat_sid]
+    while curr_sid > 0
+      sids = File.binread(@fname, size, (curr_sid+1)*size).unpack('l*')
+      sat_sids.concat(sids.select{|x| x > 0})
+      curr_sid = sids[-1].to_i
+    end
+    return sat_sids
   end
 
   def ssat_table()
@@ -217,7 +225,7 @@ class SpcFile
 #    if level > 5
 #      return
 #    end
-    puts "  "*level + node[:name] + " #{node[:sid]}"
+    puts "  "*level + node[:name] + " (#{node[:sid]}, #{node[:size]})"
 
     (node[:children] || []).each do |c|
       print_node(c, level+1)
